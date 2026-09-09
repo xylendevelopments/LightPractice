@@ -1,0 +1,224 @@
+name: LightPractice
+version: '${project.version}'
+main: gg.lightpractice.LightPractice
+load: POSTWORLD
+author: LightPractice
+description: Competitive Minecraft PvP practice core - matches, queues, ELO, divisions, parties, tournaments, bots and arenas.
+website: https://lightpractice.gg
+softdepend:
+  - FastAsyncWorldEdit
+  - WorldEdit
+  - ProtocolLib
+  - PlaceholderAPI
+  - Citizens
+  - Vault
+
+commands:
+  lightpractice:
+    description: Main LightPractice administration command.
+    usage: /lightpractice <reload|setspawn|debug|info|ban|unban|bans>
+    aliases: [lp, practice]
+    permission: lightpractice.use
+  hub:
+    description: Return to the practice lobby.
+    usage: /hub
+    aliases: [lobby, spawn]
+    permission: lightpractice.hub
+  duel:
+    description: Send, accept or deny direct duel requests.
+    usage: /duel <player|accept|deny|settings>
+    aliases: [d]
+    permission: lightpractice.duel.use
+  queue:
+    description: Join, leave or inspect practice queues.
+    usage: /queue <join|leave|list> [kit]
+    aliases: [q]
+    permission: lightpractice.queue.use
+  randomqueue:
+    description: Join a random eligible queue.
+    usage: /randomqueue
+    aliases: [rq, randomq]
+    permission: lightpractice.queue.use
+  party:
+    description: Party management and party matches.
+    usage: /party <create|invite|accept|deny|leave|kick|promote|disband|info|settings|open|close|ffa|split|duel>
+    aliases: [p]
+    permission: lightpractice.party.use
+  kit:
+    description: Kit selection and administration.
+    usage: /kit <name|create|delete|edit|info|list|enable|disable>
+    aliases: [kits]
+    permission: lightpractice.kit.use
+  arena:
+    description: Arena creation, editing and maintenance.
+    usage: /arena <create|delete|list|info|setspawn|setbounds|setschematic|saveChanges|saveAllChanges|reset|enable|disable>
+    aliases: [arenas]
+    permission: lightpractice.arena.use
+  spectate:
+    description: Spectate a player or a match.
+    usage: /spectate <player|match|leave>
+    permission: lightpractice.spectate
+  history:
+    description: View recent match history.
+    usage: /history [player] [page]
+    permission: lightpractice.history
+  leaderboard:
+    description: View practice leaderboards.
+    usage: /leaderboard [type] [page]
+    permission: lightpractice.leaderboard
+  tournament:
+    description: Host, join and manage tournaments.
+    usage: /tournament <create|join|leave|start|stop|info|bracket|list>
+    permission: lightpractice.tournament.join
+  event:
+    description: Host, join and manage game events.
+    usage: /event <list|host|join|leave|start|stop|info>
+    permission: lightpractice.event.join
+  bot:
+    description: Spawn a practice bot.
+    usage: /bot <difficulty|settings|remove>
+    permission: lightpractice.bot.use
+  cosmetics:
+    description: Browse, purchase and equip cosmetics.
+    usage: /cosmetics [type]
+    permission: lightpractice.cosmetics
+  profile:
+    description: View a player profile.
+    usage: /profile [player]
+    permission: lightpractice.profile
+  stats:
+    description: View statistics.
+    usage: /stats [player]
+    permission: lightpractice.stats
+  daily:
+    description: Claim the daily reward.
+    usage: /daily
+    permission: lightpractice.daily
+  settings:
+    description: Open your player settings menu.
+    usage: /settings
+    permission: lightpractice.settings
+
+permissions:
+  lightpractice.use:
+    description: Allows usage of the main command and lobby features.
+    default: true
+  lightpractice.hub:
+    description: Allows returning to the lobby.
+    default: true
+  lightpractice.admin:
+    description: Grants every LightPractice administrative permission.
+    default: op
+    children:
+      lightpractice.arena.admin: true
+      lightpractice.kit.admin: true
+      lightpractice.queue.admin: true
+      lightpractice.tournament.host: true
+      lightpractice.tournament.start: true
+      lightpractice.event.host: true
+      lightpractice.bot.admin: true
+      lightpractice.cosmetics.admin: true
+      lightpractice.ban: true
+      lightpractice.reload: true
+      lightpractice.setspawn: true
+      lightpractice.spectate: true
+      lightpractice.debug: true
+  lightpractice.reload:
+    description: Allows reloading configuration files.
+    default: op
+  lightpractice.setspawn:
+    description: Allows setting the lobby spawn.
+    default: op
+  lightpractice.debug:
+    description: Allows toggling and reading debug output.
+    default: op
+  lightpractice.ban:
+    description: Allows practice bans.
+    default: op
+  lightpractice.arena.use:
+    description: Allows reading arena information.
+    default: op
+  lightpractice.arena.admin:
+    description: Allows creating, editing and resetting arenas.
+    default: op
+  lightpractice.kit.use:
+    description: Allows opening kit menus and selecting kits.
+    default: true
+  lightpractice.kit.admin:
+    description: Allows creating, editing, enabling and disabling kits.
+    default: op
+  lightpractice.queue.use:
+    description: Allows joining queues.
+    default: true
+  lightpractice.queue.admin:
+    description: Allows administrative queue control.
+    default: op
+  lightpractice.duel.use:
+    description: Allows sending and answering duel requests.
+    default: true
+  lightpractice.duel.bypass:
+    description: Allows dueling while queues are closed.
+    default: op
+  lightpractice.party.use:
+    description: Allows creating and managing parties.
+    default: true
+  lightpractice.party.size.bypass:
+    description: Bypasses the configured party size limit.
+    default: op
+  lightpractice.spectate:
+    description: Allows spectating matches.
+    default: true
+  lightpractice.spectate.admin:
+    description: Allows spectating matches that hide spectators.
+    default: op
+  lightpractice.history:
+    description: Allows viewing match history.
+    default: true
+  lightpractice.history.others:
+    description: Allows viewing other players match history.
+    default: true
+  lightpractice.leaderboard:
+    description: Allows viewing leaderboards.
+    default: true
+  lightpractice.tournament.join:
+    description: Allows joining tournaments.
+    default: true
+  lightpractice.tournament.host:
+    description: Allows creating tournaments.
+    default: op
+  lightpractice.tournament.start:
+    description: Allows starting tournaments.
+    default: op
+  lightpractice.event.join:
+    description: Allows joining events.
+    default: true
+  lightpractice.event.host:
+    description: Allows hosting events.
+    default: op
+  lightpractice.bot.use:
+    description: Allows spawning practice bots.
+    default: true
+  lightpractice.bot.admin:
+    description: Allows configuring bot presets.
+    default: op
+  lightpractice.cosmetics:
+    description: Allows opening the cosmetics menu.
+    default: true
+  lightpractice.cosmetics.admin:
+    description: Allows unlocking cosmetics without paying.
+    default: op
+  lightpractice.profile:
+    description: Allows viewing profiles.
+    default: true
+  lightpractice.stats:
+    description: Allows viewing statistics.
+    default: true
+  lightpractice.daily:
+    description: Allows claiming daily rewards.
+    default: true
+  lightpractice.settings:
+    description: Allows opening the settings menu.
+    default: true
+  lightpractice.kit.premium:
+    description: Example gate for premium kits referenced from kits.yml.
+    default: false
