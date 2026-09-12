@@ -22,6 +22,10 @@ jobs:
     name: Build plugin jar
     runs-on: ubuntu-latest
 
+    env:
+      # Shared between the Maven steps so a failure can be reported the same way everywhere.
+      MAVEN_LOG: /tmp/maven.log
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -39,28 +43,45 @@ jobs:
       # The Spigot API and PlaceholderAPI artifacts come from third party repositories at resolve
       # time; -U keeps the 1.8.8 SNAPSHOT fresh instead of trusting a stale cached copy.
       #
-      # Failures are echoed as ::error:: annotations because third party repository outages are
-      # otherwise indistinguishable from a real compile break, and raw run logs expire.
+      # Every Maven step below mirrors its output to $MAVEN_LOG and republishes the [ERROR] lines
+      # as ::error:: annotations. Raw run logs expire and a third party repository outage is
+      # otherwise indistinguishable from a real compile break, so the failure has to be legible in
+      # the Checks UI on its own.
       - name: Resolve dependencies
         run: |
-          if ! mvn -B -ntp -U dependency:resolve > /tmp/resolve.log 2>&1; then
-            echo '----- Maven output -----'
-            tail -n 40 /tmp/resolve.log
-            echo '------------------------'
-            grep -E '^\[ERROR\]' /tmp/resolve.log | head -n 20 | sed 's/^\[ERROR\] /::error::/'
-            exit 1
+          set +e
+          mvn -B -ntp -U dependency:resolve > "$MAVEN_LOG" 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            tail -n 30 "$MAVEN_LOG"
+            grep -E '^\[ERROR\]' "$MAVEN_LOG" | head -n 15 | sed 's/^\[ERROR\] */::error::/'
           fi
-          tail -n 5 /tmp/resolve.log
+          exit $status
 
       # defaultGoal in the POM is "clean package"; maven-shade-plugin runs during package and
       # relocates the MongoDB driver into the shaded jar.
       - name: Build
-        run: mvn -B -ntp -DskipTests package
+        run: |
+          set +e
+          mvn -B -ntp -DskipTests package > "$MAVEN_LOG" 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            echo '----- compile summary -----'
+            grep -cE '^\[ERROR\].*\.java:' "$MAVEN_LOG" || true
+            grep -oE '[^/]+\.java' "$MAVEN_LOG" | sort -u | head -n 40 || true
+            echo '---------------------------'
+            grep -E '^\[ERROR\]' "$MAVEN_LOG" | head -n 30 \
+              | sed -E 's#^\[ERROR\] .*/src/main/java/##; s/^\[ERROR\] */::error::/'
+          fi
+          exit $status
 
       - name: Verify the plugin descriptor is in the jar
         run: unzip -p target/LightPractice-*.jar plugin.yml | head -n 20
 
       - name: Upload jar
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: LightPractice-${{ github.sha }}
