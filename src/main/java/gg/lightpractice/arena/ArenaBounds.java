@@ -13,7 +13,7 @@ public final class ArenaBounds {
 
     private final String worldName;
     private final int minX;
-    private final minY;
+    private final int minY;
     private final int minZ;
     private final int maxX;
     private final int maxY;
