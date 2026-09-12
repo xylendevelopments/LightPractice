@@ -50,6 +50,19 @@
             <artifactId>spigot-api</artifactId>
             <version>${spigot.version}</version>
             <scope>provided</scope>
+            <exclusions>
+                <!--
+                  bungeecord-chat is a transitive provided dependency of the 1.8 Spigot POM, only
+                  needed for the BungeeCord chat component API that this plugin never touches
+                  (1.8.9 predates that API surface). Its sole public host was the oss.sonatype.org
+                  snapshots repository, which is no longer served, so leaving it in makes the
+                  project unresolvable - and therefore unbuildable - on any machine.
+                -->
+                <exclusion>
+                    <groupId>net.md-5</groupId>
+                    <artifactId>bungeecord-chat</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- Persistence. Shaded and relocated so it never clashes with other plugins. -->
