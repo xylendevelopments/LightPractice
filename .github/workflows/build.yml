@@ -24,7 +24,8 @@ jobs:
 
     env:
       # Shared between the Maven steps so a failure can be reported the same way everywhere.
-      MAVEN_LOG: /tmp/maven.log
+      # Kept inside the workspace (and covered by .gitignore's *.log) so it can be uploaded.
+      MAVEN_LOG: maven.log
 
     steps:
       - name: Check out repository
@@ -61,6 +62,10 @@ jobs:
 
       # defaultGoal in the POM is "clean package"; maven-shade-plugin runs during package and
       # relocates the MongoDB driver into the shaded jar.
+      #
+      # A check run only keeps the 10 most recent annotations, so one annotation per error is
+      # truncated for anything but the smallest failure. The errors are collapsed into a single
+      # annotation and the counts into another, so a failure is diagnosable from the Checks UI.
       - name: Build
         run: |
           set +e
@@ -68,12 +73,14 @@ jobs:
           status=$?
           set -e
           if [ $status -ne 0 ]; then
-            echo '----- compile summary -----'
-            grep -cE '^\[ERROR\].*\.java:' "$MAVEN_LOG" || true
-            grep -oE '[^/]+\.java' "$MAVEN_LOG" | sort -u | head -n 40 || true
-            echo '---------------------------'
-            grep -E '^\[ERROR\]' "$MAVEN_LOG" | head -n 30 \
-              | sed -E 's#^\[ERROR\] .*/src/main/java/##; s/^\[ERROR\] */::error::/'
+            errors=$(grep -E '^\[ERROR\].*\.java:\[' "$MAVEN_LOG" | sed -E 's#^\[ERROR\] .*/src/main/java/##')
+            count=$(printf '%s\n' "$errors" | grep -c . || true)
+            files=$(printf '%s\n' "$errors" | cut -d: -f1 | sort -u | grep -c . || true)
+            echo "::error::Build failed: $count compile error(s) across $files source file(s)"
+            if [ "$count" -gt 0 ]; then
+              echo "::error::$(printf '%s' "$errors" | head -n 60 | sed ':a;N;$!ba;s/\n/%0A/g')"
+            fi
+            tail -n 15 "$MAVEN_LOG"
           fi
           exit $status
 
@@ -87,4 +94,15 @@ jobs:
           name: LightPractice-${{ github.sha }}
           path: target/LightPractice-*.jar
           if-no-files-found: error
+          retention-days: 14
+
+      # Run logs expire; the artifact does not, so the full Maven output stays retrievable for
+      # however long the jar would have been kept.
+      - name: Upload Maven log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-log-${{ github.run_attempt }}
+          path: ${{ env.MAVEN_LOG }}
+          if-no-files-found: ignore
           retention-days: 14
