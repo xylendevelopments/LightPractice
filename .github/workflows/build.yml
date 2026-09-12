@@ -1,0 +1,108 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Only the newest push to a given ref matters; superseded runs are cancelled.
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build plugin jar
+    runs-on: ubuntu-latest
+
+    env:
+      # Shared between the Maven steps so a failure can be reported the same way everywhere.
+      # Kept inside the workspace (and covered by .gitignore's *.log) so it can be uploaded.
+      MAVEN_LOG: maven.log
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      # The toolchain pins v5 of both actions: v4 still targets the deprecated Node.js 20 runtime. because Minecraft 1.8.9 servers run on it.
+      # Building with a newer JDK would break the configured 1.8 source/target level, so the
+      # toolchain is pinned to Temurin 8. Maven dependency caching is handled by setup-java.
+      - name: Set up JDK 8
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: maven
+
+      # The Spigot API and PlaceholderAPI artifacts come from third party repositories at resolve
+      # time; -U keeps the 1.8.8 SNAPSHOT fresh instead of trusting a stale cached copy.
+      #
+      # Every Maven step below mirrors its output to $MAVEN_LOG and republishes the [ERROR] lines
+      # as ::error:: annotations. Raw run logs expire and a third party repository outage is
+      # otherwise indistinguishable from a real compile break, so the failure has to be legible in
+      # the Checks UI on its own.
+      - name: Resolve dependencies
+        run: |
+          set +e
+          mvn -B -ntp -U dependency:resolve > "$MAVEN_LOG" 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            tail -n 30 "$MAVEN_LOG"
+            grep -E '^\[ERROR\]' "$MAVEN_LOG" | head -n 15 | sed 's/^\[ERROR\] */::error::/'
+          fi
+          exit $status
+
+      # defaultGoal in the POM is "clean package"; maven-shade-plugin runs during package and
+      # relocates the MongoDB driver into the shaded jar.
+      #
+      # A check run only keeps the 10 most recent annotations, so one annotation per error is
+      # truncated for anything but the smallest failure. The errors are collapsed into a single
+      # annotation and the counts into another, so a failure is diagnosable from the Checks UI.
+      - name: Build
+        run: |
+          set +e
+          mvn -B -ntp -DskipTests package > "$MAVEN_LOG" 2>&1
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            errors=$(grep -E '^\[ERROR\].*\.java:\[' "$MAVEN_LOG" | sed -E 's#^\[ERROR\] .*/src/main/java/##')
+            count=$(printf '%s\n' "$errors" | grep -c . || true)
+            files=$(printf '%s\n' "$errors" | cut -d: -f1 | sort -u | grep -c . || true)
+            echo "::error::Build failed: $count compile error(s) across $files source file(s)"
+            if [ "$count" -gt 0 ]; then
+              echo "::error::$(printf '%s' "$errors" | head -n 60 | sed ':a;N;$!ba;s/\n/%0A/g')"
+            fi
+            tail -n 15 "$MAVEN_LOG"
+          fi
+          exit $status
+
+      - name: Verify the plugin descriptor is in the jar
+        run: unzip -p target/LightPractice-*.jar plugin.yml | head -n 20
+
+      - name: Upload jar
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: LightPractice-${{ github.sha }}
+          path: target/LightPractice-*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+      # Run logs expire; the artifact does not, so the full Maven output stays retrievable for
+      # however long the jar would have been kept.
+      - name: Upload Maven log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: maven-log-${{ github.run_attempt }}
+          path: ${{ env.MAVEN_LOG }}
+          if-no-files-found: ignore
+          retention-days: 14
