@@ -89,7 +89,7 @@ jobs:
 
       - name: Upload jar
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: LightPractice-${{ github.sha }}
           path: target/LightPractice-*.jar
@@ -100,7 +100,7 @@ jobs:
       # however long the jar would have been kept.
       - name: Upload Maven log
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: maven-log-${{ github.run_attempt }}
           path: ${{ env.MAVEN_LOG }}
