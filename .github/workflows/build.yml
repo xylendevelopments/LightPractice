@@ -38,8 +38,19 @@ jobs:
 
       # The Spigot API and PlaceholderAPI artifacts come from third party repositories at resolve
       # time; -U keeps the 1.8.8 SNAPSHOT fresh instead of trusting a stale cached copy.
+      #
+      # Failures are echoed as ::error:: annotations because third party repository outages are
+      # otherwise indistinguishable from a real compile break, and raw run logs expire.
       - name: Resolve dependencies
-        run: mvn -B -ntp -U dependency:resolve
+        run: |
+          if ! mvn -B -ntp -U dependency:resolve > /tmp/resolve.log 2>&1; then
+            echo '----- Maven output -----'
+            tail -n 40 /tmp/resolve.log
+            echo '------------------------'
+            grep -E '^\[ERROR\]' /tmp/resolve.log | head -n 20 | sed 's/^\[ERROR\] /::error::/'
+            exit 1
+          fi
+          tail -n 5 /tmp/resolve.log
 
       # defaultGoal in the POM is "clean package"; maven-shade-plugin runs during package and
       # relocates the MongoDB driver into the shaded jar.
